@@ -13,14 +13,20 @@ This first pre-relase contains:
 * Docker
 
 ## How-to
+### Get the Image
 
-### Build the image
+* From dockerhub
+```
+docker pull hyradus/mordor:latest
+```
 
-* Clone this repository
-* Build the docker image by executing:
-```
-docker build -t mordor -f mordord.dockerfile .
-```
+* Building from scratch
+
+  * Clone this repository
+  * Build the docker image by executing:
+  ```
+  docker build -t mordor -f mordord.dockerfile .
+  ```
 
 ### Run the image
 
