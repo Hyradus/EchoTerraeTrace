@@ -32,7 +32,7 @@ docker pull hyradus/mordor:latest
 
 * Run it by executing:
 ```
-docker run -it --rm -e NB_UID=$UID -e NB_GID=$UID -e CHOWN_HOME=yes -e CHOWN_EXTRA_OPTS='-R' -v path-to-data-folder:/Home/jovyan/MORDOR/Data -p 8888:8888 mordor:latest
+docker run -it --rm -e NB_UID=$UID -e NB_GID=$UID -e CHOWN_HOME=yes -e CHOWN_EXTRA_OPTS='-R' -v path-to-data-folder:/home/jovyan/MORDOR/Data -p 8888:8888 mordor:latest
 ```
 **Remember to change path-to-data-folder with a folder where the data will be downloaded or where are stored the data in the local machine (e.g. if downloaded previously)**
 
