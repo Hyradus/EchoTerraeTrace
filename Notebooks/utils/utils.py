@@ -3,6 +3,7 @@
 """
 @author: giacomo.nodjoumi@hyranet.info - g.nodjoumi@jacobs-university.de
 """
+from affine import Affine
 import geopandas as gpd
 import holoviews as hv
 from holoviews import opts
@@ -129,13 +130,28 @@ def track_prep(sharad_gdf, acquisition, acquisition_folder, track, wcs_url, dem_
     geom = sub_gdf.iloc[0].geometry  
     sub_gdf.to_file(f'{acquisition_folder}/{track_name}_footprint.gpkg', driver='GPKG')
     bounding_box= BB(min(geom.xy[0]), min(geom.xy[1]), max(geom.xy[0]), max(geom.xy[1]))
+    # define basemap and dem filename
     bmap_savename = f"{os.path.dirname(acquisition)}/{bmap_layerid}-crop_track-{track}.tiff"
-    wcs_get(wcs_url, bmap_layerid, bounding_box, bmap_savename, resx=0.03, resy=0.03)
-#    wcs_get(wcs_url, bmap_layerid, bounding_box, plot_size, track)
     dem_savename = f"{os.path.dirname(acquisition)}/{dem_layerid}-crop_track-{track}.tiff"
-    wcs_get(wcs_url, dem_layerid, bounding_box, dem_savename, resx=0.005, resy=0.005)
-    #wcs_get(wcs_url, dem_layerid, bounding_box, plot_size, track)
-    return (bmap_savename, dem_savename, geom, sub_gdf)
+    # check if already downloaded and download if missing
+    map_error = None
+    if not os.path.isfile(bmap_savename):        
+        try:           
+            wcs_get(wcs_url, bmap_layerid, bounding_box, bmap_savename, resx=0.03, resy=0.03)
+        except Exception as e:
+            map_error = e
+            bmap_savename = None
+            pass
+    dem_error = None
+    if not os.path.isfile(dem_savename):
+
+        try:           
+            wcs_get(wcs_url, dem_layerid, bounding_box, dem_savename, resx=0.05, resy=0.05)
+        except Exception as e:
+            dem_error = e
+            dem_savename = None
+            pass
+    return (bmap_savename, dem_savename, geom, sub_gdf, map_error, dem_error)
 
 def basemap_extractor(base_image_path, track_name, acquisition, bbox, dst_crs):
     #base_image_path =  f'./Data/Basemap/{base_image}'
@@ -174,12 +190,20 @@ def data_prep(acquisition, comboMap, basemap_image, geom):
     #rdr_bounds = (left,bottom,right,top)
     #basemap_bounds = (0,basemap_rot.shape[0],basemap_rot.shape[1],0)
     #basemap_bounds = (0,basemap.shape[0],basemap.shape[1],0)
-    im = Image.open(basemap_image)
-    im1 = im.rotate(90, expand=1)
-    im1=im1.resize((math.ceil(geom.length//1000),int(im1.size[1]/im1.size[0]*math.ceil(geom.length//1000))))
-    basemap_bounds = (0,im1.size[1],im1.size[0],0)
+    er = None
+    try:
+        im = Image.open(basemap_image)
+        im1 = im.rotate(90, expand=1)
+        im1=im1.resize((math.ceil(geom.length//1000),int(im1.size[1]/im1.size[0]*math.ceil(geom.length//1000))))
+        basemap_bounds = (0,im1.size[1],im1.size[0],0)
+    except Exception as e:
+        basemap_bounds = None
+        im = None
+        im1 = None
+        er=e
+        pass
     rdr_bounds = (0,max_height*-0.0375,geom.length//1000,0)
-    return(im, im1, acq, rdr_bounds, basemap_bounds, max_width, max_height)
+    return(im, im1, acq, rdr_bounds, basemap_bounds, max_width, max_height,er)
 
 
 def roi_prep(roi_image, rect):
@@ -254,11 +278,12 @@ def plot_prep(track, plot_size, acq, comboMap, basemap_rot, coord_new_xticks, co
                                                                         gridstyle=grid_style, show_grid=True, title=f'Clutter Simulation for track: {track}')    
     plot_scs_db = hv.Image(np.asarray(comboMap)*0.137, bounds=rdr_bounds).opts(yformatter=yFormatter,xrotation=90,yrotation=0,xlabel='Distance along track (Km)',ylabel='TWT (μs)',
                                                                         cmap='viridis', width=plot_size, height=int((acq.size[1]*plot_size/acq.size[0])//2),
-                                                                        gridstyle=grid_style, show_grid=True, title=f'Clutter Simulation for track: {track}')    
+                                                                        gridstyle=grid_style, show_grid=True, title=f'Clutter Simulation for track: {track}')
+    
     plot_map = hv.Image(np.asarray(basemap_rot), bounds=basemap_bounds).opts(xticks=coord_new_xticks,yticks=coord_new_yticks,xrotation=45,yrotation=0,xlabel='Latitude',ylabel='Longitude',
-                                                                 cmap='viridis',axiswise=True,width=plot_size, height=basemap_rot.size[1]*plot_size//basemap_rot.size[0],
+                                                                 cmap='viridis',axiswise=True,width=plot_size*3, height=(basemap_rot.size[1]*plot_size//basemap_rot.size[0])*3,
                                                                  gridstyle=grid_style, show_grid=True, title='Track footprint and area of interest')
-    plot_foot = hv.Curve(foot_points_df, 'lon','lat').opts(color='red',width=plot_size, height=basemap_rot.size[1]*plot_size//basemap_rot.size[0])
+    plot_foot = hv.Curve(foot_points_df, 'lon','lat').opts(color='red',width=plot_size*2, height=(basemap_rot.size[1]*plot_size//basemap_rot.size[0])*2)
     plot_acq_pow = hv.Curve(acq_pow_profile, xdim,'Backscatter Power (dB)',label='Acqusition').opts(yformatter=PowyFormatter,title=f'Max Backscatter Power for track: {track}',color='red',width=plot_size, line_width=1)#, height=basemap_rot.size[1]*plot_size//basemap_rot.size[0])
     plot_scs_pow = hv.Curve(scs_pow_profile, xdim,'Backscatter Power (dB)', label='SCS').opts(yformatter=PowyFormatter,color='blue',width=plot_size, line_width=1)
     dem_profile = [float(x) for x in dem_profile[1::]]
@@ -274,7 +299,6 @@ def plot_prep(track, plot_size, acq, comboMap, basemap_rot, coord_new_xticks, co
         plot_rect = None
     plot_roi = None #temporary WIP
     return(plot_rgram, plot_scs, plot_map, plot_foot, plot_rect, plot_roi, plot_dem_profile, plot_scs_pow, plot_acq_pow, plot_acq_db, plot_scs_db)
-
 
 def get_poi_geom(geom_file,ID):
     import geopandas as gpd

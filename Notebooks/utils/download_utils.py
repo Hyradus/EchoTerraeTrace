@@ -139,8 +139,14 @@ def downloader_basemap_prep(wcs_url, layerid, ddir, track_gdf, plot_height,resx,
     max_Lon = track_gdf.bounds.maxx.max()
     gdf_bounding_box = BB(min_Lon, min_Lat, max_Lon, max_Lat)
     bmap_savename = f"./{ddir}/{layerid}-tracks_basemap"
-    bmap_savename
-    wcs_get(wcs_url, layerid, gdf_bounding_box, bmap_savename, resx=resx, resy=resy)
+    map_error = None
+    if not os.path.isfile(bmap_savename):        
+        try:                       
+            wcs_get(wcs_url, layerid, gdf_bounding_box, bmap_savename, resx=resx, resy=resy)
+        except Exception as e:
+            map_error = e
+            bmap_savename = None
+            pass        
     ximg = riox.open_rasterio(bmap_savename)
     import math
     src_width =ximg.shape[2]
@@ -157,7 +163,7 @@ def downloader_basemap_prep(wcs_url, layerid, ddir, track_gdf, plot_height,resx,
         ),
         vdims=list('RGB')
     )
-    return(bmap_savename, ximg, plot_width, rgb)
+    return(bmap_savename, ximg, plot_width, rgb,map_error)
 
 
 def get_products(bounding_box, Orbiter, Instrument, Data,download_simulations):
