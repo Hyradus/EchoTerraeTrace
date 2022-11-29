@@ -11,30 +11,46 @@ This first pre-relase contains:
 ## Prerequisites
 
 * Docker
+or 
+* Conda
 
 ## How-to
-### Get the Image
+### Using Docker (suggested)
 
-* From dockerhub
+#### Pull the image from dockerhub
 ```
 docker pull hyradus/mordor:latest
 ```
+**OR**
+#### Build the image from scratch
 
-* Building from scratch
-
-  * Clone this repository
-  * Build the docker image by executing:
+  * Clone [this](https://github.com/Hyradus/MORDOR) repository
+  * Build the docker image:
   ```
   docker build -t mordor -f mordord.dockerfile .
   ```
-
-### Run the image
-
-* Run it by executing:
+**THEN**
+#### Run the container
 ```
 docker run -it --rm -e NB_UID=$UID -e NB_GID=$UID -e CHOWN_HOME=yes -e CHOWN_HOME_OPTS='-R' --user root -v path-to-data-folder:/home/jovyan/MORDOR/Data -p 8888:8888 mordor:latest
 ```
 **Remember to change path-to-data-folder with a folder where the data will be downloaded or where are stored the data in the local machine (e.g. if downloaded previously)**
+
+### Using conda environment
+
+* Clone [this](https://github.com/Hyradus/MORDOR) repository.
+* Create the conda environment:
+
+```
+cd MORDOR
+conda env create -name mordor -f env.yml
+```
+
+**Run it:**
+```
+conda activate mordor
+jupyter lab
+```
 
 ## To-DO
 
