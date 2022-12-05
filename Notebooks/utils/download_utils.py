@@ -6,7 +6,7 @@
 from bs4 import BeautifulSoup as BS
 from gpt import log
 from gpt.search import ode
-import geoviews as gv 
+import geoviews as gv
 import itertools
 import os
 import urllib.request as ulr
@@ -132,17 +132,18 @@ def chunk_creator(dlist):
     return(chunks, JOBS)
 
 
-def downloader_basemap_prep(wcs_url, layerid, ddir, track_gdf, plot_height,resx,resy):
-    min_Lon = track_gdf.bounds.minx.min()
-    min_Lat = track_gdf.bounds.miny.min()
-    max_Lat = track_gdf.bounds.maxy.max()
-    max_Lon = track_gdf.bounds.maxx.max()
-    gdf_bounding_box = BB(min_Lon, min_Lat, max_Lon, max_Lat)
-    bmap_savename = f"./{ddir}/{layerid}-tracks_basemap"
+def downloader_basemap_prep(wcs_url, layerid, ddir, min_Lon, min_Lat, max_Lon, max_Lat, plot_height,resx,resy):
+    #min_Lon = track_gdf.bounds.minx.min()
+    #min_Lat = track_gdf.bounds.miny.min()
+    #max_Lat = track_gdf.bounds.maxy.max()
+    #max_Lon = track_gdf.bounds.maxx.max()
+    #gdf_bounding_box = BB(min_Lon, min_Lat, max_Lon, max_Lat)
+    bounding_box = [min_Lon, min_Lat, max_Lon, max_Lat]
+    bmap_savename = f"{ddir}/{layerid}-_bb_{min_Lon}-{min_Lat}-Min-{max_Lon}-{max_Lat}-Max_basemap.tiff"
     map_error = None
     if not os.path.isfile(bmap_savename):        
         try:                       
-            wcs_get(wcs_url, layerid, gdf_bounding_box, bmap_savename, resx=resx, resy=resy)
+            wcs_get(wcs_url, layerid, bounding_box, bmap_savename, resx=resx, resy=resy)
         except Exception as e:
             map_error = e
             bmap_savename = None
