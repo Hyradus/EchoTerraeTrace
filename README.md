@@ -1,4 +1,4 @@
-# MORDOR
+# EchoTerraeTrace (prev. MORDOR)
 **M**ars **O**rbital **R**adar **D**ata **O**pen-**R**eader
 
 This repository contains the first pre-release of MORDOR, a toolset dedicated to Mars Orbital Radar Data downloading, reading and processing using interactive Jupyter notebooks.
