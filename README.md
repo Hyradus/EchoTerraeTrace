@@ -1,16 +1,38 @@
 # EchoTerraeTrace (prev. MORDOR)
+
 **M**ars **O**rbital **R**adar **D**ata **O**pen-**R**eader
 
-This repository contains the first pre-release of MORDOR, a toolset dedicated to Mars Orbital Radar Data downloading, reading and processing using interactive Jupyter notebooks.
+First Release of EchoTerraeTrace!
 
-This first pre-relase contains:
+## With this first release:
 
-* a dockerfile to build the docker image.
-* Notebooks for SHARAD (including SCS) and MARSIS data downloading.
+Former app names where changed:
 
-## Prerequisites
+EchoTerraeTrace-Draw -> ett_*instrument*.py
+EchoTerraeTrace-Profiler -> ett_*instrument*_profiler.py
+EchoTerraeTrace-3D -> dash_app.py (experimental)
 
-* Docker
+### SHARAD
+* **ett_sharad.py**
+* **ett_sharad_profiler.py**
+
+### MARSIS
+* **ett_marsis.py**
+* **ett_marsis_profiler.py**
+
+### 3D Visualization and analysis
+
+* **dash_app.py**
+
+## Data Prerequisites
+
+* Mars MOLA basemap with filename *Mars_HRSC_MOLA_BlendDEM_Global_200mp_v2-cog.tiff* in folder data-folder-path/Basemaps
+* SHARAD Coverage shapefile, from ODE-PDS, in folder data-folder-path/Instrument/Coverage (e.g. data/SHARAD/Coverage)
+* A polygon gpkg named *LavaFieldGroups_buffer_01.gpkg* in data/Products/ - This will be used to crop on the fly the radar footprint 
+
+## Software Prerequisites
+
+* Docker + docker-buildx
 or 
 * Conda
 
@@ -19,7 +41,7 @@ or
 
 #### Pull the image from dockerhub
 ```
-docker pull hyradus/mordor:latest
+docker pull hyradus/echoterraetrace:latest
 ```
 **OR**
 #### Build the image from scratch
@@ -27,12 +49,12 @@ docker pull hyradus/mordor:latest
   * Clone [this](https://github.com/Hyradus/MORDOR) repository
   * Build the docker image:
   ```
-  docker build -t mordor -f mordord.dockerfile .
+  docker buildx -t ett -f Dockerfile .
   ```
 **THEN**
 #### Run the container
 ```
-docker run -it --rm -e NB_UID=$UID -e NB_GID=$UID -e CHOWN_HOME=yes -e CHOWN_HOME_OPTS='-R' --user root -v path-to-data-folder:/home/jovyan/MORDOR/Data -p 8888:8888 mordor:latest
+docker run -it --rm --name ett -p 8881:8888 -p 5006:5006 -p 5007:5007 -p 5008:5008 -p 5009:5009 -p 8050:8050 --name ett -v path-to-data:/Data/SHARAD/ ett:latest 
 ```
 **Remember to change path-to-data-folder with a folder where the data will be downloaded or where are stored the data in the local machine (e.g. if downloaded previously)**
 
@@ -42,14 +64,18 @@ docker run -it --rm -e NB_UID=$UID -e NB_GID=$UID -e CHOWN_HOME=yes -e CHOWN_HOM
 * Create the conda environment:
 
 ```
-cd MORDOR
-conda env create -name mordor -f env.yml
+cd EchoTerraeTrace
+conda env create -name ett -f environment.yml
 ```
 
 **Run it:**
 ```
-conda activate mordor
-jupyter lab
+conda activate ett
+```
+then run one of the app, remember first to edit the absolute folder in each python file before execution.
+
+```
+bokeh serve ett_sharad.py --port 5006
 ```
 
 ## To-DO
