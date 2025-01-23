@@ -1,0 +1,32 @@
+name: ett
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - geopandas
+  - rasterio
+  - scikit-learn
+  - scikit-image
+  - bokeh
+  - shapely
+  - scipy
+  - holoviews
+  - jupyterlab
+  - opencv
+  - plotly
+  - ipywidgets
+  - pytables
+  - pip
+  - pip:
+    - pds4_tools
+    - pdr
+    - beautifulsoup4
+    - panel
+    - owslib
+    - psutil
+    - rioxarray
+    - https://github.com/chbrandt/gpt/archive/refs/tags/v0.3dev1.zip
+    - dash
+    - gunicorn
