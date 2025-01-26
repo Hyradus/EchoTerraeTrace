@@ -105,7 +105,7 @@ available_tracks.insert(0, '0000000')
 #DST_CRS = CRS.from_wkt('PROJCS["Mars_Equidistant_Cylindrical",GEOGCS["Mars 2000",DATUM["D_Mars_2000",SPHEROID["Mars_2000_IAU_IAG",3396190.0,169.89444722361179]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Equidistant_Cylindrical"],PARAMETER["False_Easting",0],PARAMETER["False_Northing",0],PARAMETER["Central_Meridian",0],PARAMETER["Standard_Parallel_1",0],UNIT["Meter",1]]')
 
         
-def main(track, boundingbox, roll, stack_titles):
+def main(track, boundingbox, roll, stack_titles, compression_value, quality_value):
     global source
     global rolled_acq
     global rolled_acq_ori
@@ -293,10 +293,79 @@ def main(track, boundingbox, roll, stack_titles):
     # SCS
     scs_figure = fg(title=f'Surface Clutter Simulation: {track}',width=plot_size//2, height=hgt//2,  x_range=radargram_figure.x_range, y_range=radargram_figure.y_range ,tools=['wheel_zoom,pan,box_zoom,reset,hover',cht])
     
+    
+    from skimage.transform import resize  # Install: pip install scikit-image
+    from PIL import Image
 
-    stack_source.data = dict(image=[stack[0, :, :]])
-    radargram_source.data = dict(image=[rolled_acq])
-    scs_source.data = dict(image=[rolled_scs])
+    ### 🔹 Step 1: Define Optimization Functions
+    def normalize_to_uint8(image):
+        """Normalize float image and convert to uint8 (0-255)."""
+        image = (image - np.min(image)) / (np.max(image) - np.min(image))  # Normalize to 0-1
+        return (image * 255).astype(np.uint8)  # Convert to 8-bit uint8
+
+    def downsample_image(image, scale_factor=0.2):
+        """Resize image to reduce resolution while preserving quality."""
+        new_shape = (int(image.shape[0] * scale_factor), int(image.shape[1] * scale_factor))
+        return resize(image, new_shape, anti_aliasing=True, preserve_range=True).astype(np.uint8)
+
+    def lossy_compress(image, quality=50):
+        """Apply JPEG compression to reduce weight."""
+        img = Image.fromarray(image)
+        img.save("temp.jpg", "JPEG", quality=quality)  # Save as JPEG
+        return np.array(Image.open("temp.jpg"))  # Reload as NumPy array
+
+    def convert_to_rgba(image):
+        """Convert grayscale or 8-bit image to RGBA format."""
+        if image.ndim == 2:  # Convert grayscale to RGBA
+            image = np.stack([image] * 3 + [np.full_like(image, 255)], axis=-1)
+        
+        # Flip image vertically to match Bokeh’s coordinate system
+        #image = np.flipud(image)
+
+        return image.view(dtype=np.uint32).reshape(image.shape[0], image.shape[1])
+
+    def process_image_stack(stack, scale_factor=0.5, quality=50):
+        """Optimize a stacked array: normalize, downsample, compress, and convert to RGBA."""
+        processed_stack = []
+        
+        for i in range(stack.shape[0]):
+            img = normalize_to_uint8(stack[i, :, :])  # Step 1: Convert float to uint8
+            img = downsample_image(img, scale_factor=scale_factor)  # Step 2: Downsample (optional)
+            img = lossy_compress(img, quality=quality)  # Step 3: Apply compression (optional)
+            img = convert_to_rgba(img)  # Step 4: Convert to RGBA
+            processed_stack.append(img)
+
+        return np.array(processed_stack, dtype=np.uint32)  # Convert list to NumPy array
+
+    def process_single_image(image, scale_factor=0.2, quality=50):
+        """Optimize a single image: normalize, downsample, compress, and convert to RGBA."""
+        img = normalize_to_uint8(image)  # Step 1: Convert float to uint8
+        img = downsample_image(img, scale_factor=scale_factor)  # Step 2: Downsample (optional)
+        img = lossy_compress(img, quality=quality)  # Step 3: Apply compression (optional)
+        return convert_to_rgba(img)  # Step 4: Convert to RGBA
+
+    ### 🔹 Step 2: Apply Optimizations
+    rgba_stack = process_image_stack(stack, scale_factor=compression_value, quality=quality_value)  # For stack (multiple images)
+    rgba_acq = process_single_image(rolled_acq, scale_factor=compression_value, quality=quality_value)  # For single acquisition image
+    rgba_scs = process_single_image(rolled_scs, scale_factor=compression_value, quality=quality_value)  # For single scs image
+
+    ### 🔹 Step 3: Update Bokeh Data Sources
+    # Only update if the data is actually changing
+    if not np.array_equal(stack_source.data["image"], [rgba_stack[0]]):
+        stack_source.data = dict(image=[rgba_stack[0]])
+
+    if not np.array_equal(radargram_source.data["image"], [rgba_acq]):
+        radargram_source.data = dict(image=[rgba_acq])
+
+    if not np.array_equal(scs_source.data["image"], [rgba_scs]):
+        scs_source.data = dict(image=[rgba_scs])
+
+    #stack_source.data = dict(image=[rgba_stack[0]])  # First image from stack
+    #radargram_source.data = dict(image=[rgba_acq])  # Processed acquisition image
+    #scs_source.data = dict(image=[rgba_scs])  # Processed SCS image
+
+
+    
 
 
     ### Plot the image
@@ -478,11 +547,12 @@ def update_plots(attrname, old, new):
     boundingbox[2] = float(max_lon_input.value)
     boundingbox[3] = float(max_lat_input.value)
     roll = int(roll_input.value.strip())
-    
+    compression_value = compression_slider.value
+    quality_value = quality_slider.value
     selected_track = track_select.value
     print(selected_track)
     
-    radargram_figure, scs_figure, stack_figure, basemap_figure, p_cross_section, powerprofs, dem_profiles, render_stack, render_radargram, render_scs, stack, geom_source, rolled_acq, rolled_scs, rolled_acq_db, rolled_scs_db, rolled_acq_ori, rolled_scs_ori, rolled_acq_db_ori, rolled_scs_db_ori, max_width, max_height, geom, geom_length, subsurface_df, track = main(selected_track, boundingbox, roll, stack_titles)
+    radargram_figure, scs_figure, stack_figure, basemap_figure, p_cross_section, powerprofs, dem_profiles, render_stack, render_radargram, render_scs, stack, geom_source, rolled_acq, rolled_scs, rolled_acq_db, rolled_scs_db, rolled_acq_ori, rolled_scs_ori, rolled_acq_db_ori, rolled_scs_db_ori, max_width, max_height, geom, geom_length, subsurface_df, track = main(selected_track, boundingbox, roll, stack_titles, compression_value, quality_value)
     print('update main')
     
     slider_enh = Slider(start=0, end=stack.shape[0]-1, value=0, step=1, title="Enhanced Image Index")
@@ -544,6 +614,8 @@ def update_plots(attrname, old, new):
     
     roll_input.on_change('value', update_plots)
     slider_enh.on_change('value', update_image)
+    compression_slider.on_change("value", update_plots)
+    quality_slider.on_change("value", update_plots)
     radargram_figure.js_on_event('mousemove', callback)
     radargram_figure.js_on_event('mousemove', callback2)
     scs_figure.js_on_event('mousemove', callback)
@@ -555,7 +627,7 @@ def update_plots(attrname, old, new):
     dem_profiles.js_on_event('mousemove', callback)
     dem_profiles.js_on_event('mousemove', callback2)
     
-    layout.children[0].children[1].children = [roll_input]
+    layout.children[0].children[1].children = [roll_input, compression_slider,quality_slider]
     layout.children[0].children[2].children = [min_lon_input, min_lat_input, max_lon_input, max_lat_input, update_button]
     layout.children[0].children[3].children = [radargram_figure, p_cross_section]
     layout.children[0].children[4].children = [scs_figure, stack_figure, slider_enh]
@@ -657,7 +729,10 @@ if track == available_tracks[0]:
     basemap_figure = fg(width=plot_size, height=plot_size//4)
     slider_enh = Slider(start=0, end=10, value=0, step=1, title="Enhanced Image Index")    
     #roll_input = TextInput(value="0",title="Image roll value")
-    
+
+    compression_slider = Slider(start=0.1, end=1.0, value=0.5, step=0.1, title="Compression Level (Scale Factor)")
+    quality_slider = Slider(start=10, end=100, value=50, step=10, title="Image Quality (JPEG Quality)")
+
     #load_original_button = Button(label="Load original picked", button_type="success")
     save_button = Button(label="Save", button_type="success")
     autopick_button = Button(label="Autopick", button_type="success")
@@ -671,7 +746,7 @@ else:
     print('ELSEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
     roll = int(roll_input.value.strip())
     print("roll", roll)
-    radargram_figure, scs_figure, stack_figure, basemap_figure, p_cross_section, powerprofs, dem_profiles, render_stack, render_radargram, render_scs, stack,  geom_source, rolled_acq, rolled_scs, rolled_acq_db, rolled_scs_db, rolled_acq_ori,  rolled_scs_ori, rolled_acq_db_ori, rolled_scs_db_ori, max_width, max_height, geom, geom_length, subsurface_df, track = main(selected_track, boundingbox, roll, stack_titles)  
+    radargram_figure, scs_figure, stack_figure, basemap_figure, p_cross_section, powerprofs, dem_profiles, render_stack, render_radargram, render_scs, stack,  geom_source, rolled_acq, rolled_scs, rolled_acq_db, rolled_scs_db, rolled_acq_ori,  rolled_scs_ori, rolled_acq_db_ori, rolled_scs_db_ori, max_width, max_height, geom, geom_length, subsurface_df, track = main(selected_track, boundingbox, roll, stack_titles, compression_value, quality_value)
 
 
 
@@ -758,7 +833,7 @@ update_button.on_click(update_plots_wrapper)
 # Define final plot layout
 
 layout = row(column(row(track_select, version_select, load_button, save_button, autopick_button),
-                    row(roll_input),
+                    row(roll_input, compression_slider, quality_slider),
                     row(min_lon_input, min_lat_input, max_lon_input, max_lat_input, update_button),  
                     row(radargram_figure, p_cross_section),
                     row(scs_figure, stack_figure, slider_enh),
