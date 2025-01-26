@@ -102,8 +102,46 @@ z_marks = build_marks(zmin, zmax, 0.5)
 ###################################################
 #   APP LAYOUT
 ###################################################
+# Demo text box
+demo_text = html.Div(
+    [
+        html.Strong("This is a demo version using slow-speed internet connections. Expect higher computing time."),
+        html.Br(),
+        "Please visit ",
+        html.A("our official site", href="https://github.com/Hyradus/EchoTerraeTrace", target="_blank"),
+        " for more details."
+    ],
+    style={
+        "backgroundColor": "#f8f9fa",
+        "padding": "10px",
+        "borderRadius": "5px",
+        "border": "1px solid #ddd",
+        "width": "600px",
+        "textAlign": "center",
+        "margin": "10px auto"  # Centers the box
+    }
+)
+
+legend_text = html.Div(
+    [
+        html.Strong("Red lines are surface reflections, while green line are subsurface reflections"),
+    ],
+    style={
+        "backgroundColor": "#f8f9fa",
+        "padding": "10px",
+        "borderRadius": "5px",
+        "border": "1px solid #ddd",
+        "width": "600px",
+        "textAlign": "center",
+        "margin": "10px auto"  # Centers the box
+    }
+)
+
+# Layout
 app.layout = html.Div([
-    html.H2("3D Interactive Dashboard (Gunicorn + Session Storage)"),
+    demo_text,  # 📌 Add the demo message here
+    
+    html.H2("EchoTerraeTrace 3D Interactive Dashboard"),
     
     dcc.Store(id='df-store', storage_type='session'),
 
@@ -212,12 +250,11 @@ app.layout = html.Div([
         ], style={'width': '30%', 'display': 'inline-block'}),
         
     ], style={'padding': '10px 0'}),
-
+    legend_text,
     html.Div(id='save-output', style={'color': 'green', 'padding': '10px 0'}),
 
     dcc.Graph(id='plot-3d')
 ])
-
 ###################################################
 # CALLBACK #1: Sync text input & slider
 ###################################################

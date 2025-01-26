@@ -30,7 +30,7 @@ from bokeh.layouts import column, row
 from bokeh.models import (
     CustomJS, Span, BoxAnnotation, PolyDrawTool, ColumnDataSource,
     Select, BBoxTileSource, Range1d, CrosshairTool, Slider, TextInput, HoverTool, 
-    CustomJSTickFormatter, Button
+    CustomJSTickFormatter, Button, Div
 )
 
 # OpenCV
@@ -831,8 +831,14 @@ update_button = Button(label="Update Bounding Box", button_type="success")
 update_button.on_click(update_plots_wrapper)       
 
 # Define final plot layout
+demo_text = Div(text="""
+    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 600px;">
+        <strong>This is a demo version using slow speed internet connections. Expect higher computing time</strong><br>
+        Please visit <a href="https://github.com/Hyradus/EchoTerraeTrace" target="_blank">our official site</a> for more details.
+    </div>
+""", width=300, height=80)
 
-layout = row(column(row(track_select, version_select, load_button, save_button, autopick_button),
+layout = row(column(row(track_select, version_select, load_button, save_button, autopick_button, demo_text),
                     row(roll_input, compression_slider, quality_slider),
                     row(min_lon_input, min_lat_input, max_lon_input, max_lat_input, update_button),  
                     row(radargram_figure, p_cross_section),

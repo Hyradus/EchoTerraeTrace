@@ -12,7 +12,7 @@ from bokeh.models import (
     Select, ColumnDataSource, LinearAxis, Range1d, PolyDrawTool, PointDrawTool, 
     LineEditTool, PolyEditTool, LabelSet, Label, HTMLTemplateFormatter, Slider, 
     CrosshairTool, Span, CustomJS, RangeTool, Div, HoverTool, CustomJSTickFormatter, 
-    Button, Legend, DataTable, DateFormatter, TableColumn
+    Button, Legend, DataTable, DateFormatter, TableColumn, Div
 )
 from bokeh.layouts import column, row
 from bokeh.events import Tap
@@ -904,10 +904,15 @@ title_points = Div(text="""<h2 style="text-align: center;">Draw Points</h2>""")
 title_bestfit = Div(text="""<h2 style="text-align: center;">BestFit lines</h2>""")
 
 
-
+demo_text = Div(text="""
+    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 600px;">
+        <strong>This is a demo version using slow speed internet connections. Expect higher computing time</strong><br>
+        Please visit <a href="https://github.com/Hyradus/EchoTerraeTrace" target="_blank">our official site</a> for more details.
+    </div>
+""", width=300, height=80)
 
 # Create layout
-layout = row(column(row(select_label,select_eps,save_button,export_button,export_button_svg),plot), column(row(download_button), row((column(title_line, data_table, title_points,data_table2)),column(title_bestfit,data_s2_table,data_s3_table))))
+layout = row(column(row(select_label,select_eps,save_button,export_button,export_button_svg,demo_text,),plot), column(row(download_button), row((column(title_line, data_table, title_points,data_table2)),column(title_bestfit,data_s2_table,data_s3_table))))
 
 
 # Add layout to the current document
