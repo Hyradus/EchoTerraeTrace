@@ -78,8 +78,7 @@ print(f"Home Directory: {home}")
 # Default data directory
 data_dir = '/Data/SHARAD/'#os.path.join(home, 'SHARAD')
 track_dir = os.path.join(data_dir, 'SHARAD/')
-# Uncomment and set the desired data directory path if needed
-#data_dir = "/home/hyradus/SyncThing/SyncData/SHARAD_PIT_DATA/Site_4/SHARAD/"
+
 
 print(f"Data Directory: {data_dir}")
 
@@ -171,8 +170,28 @@ def main(track, boundingbox, roll, stack_titles, compression_value, quality_valu
         print(subsurface_df)
     except Exception as e:
         print('HDF READING ERROR: ',e)
+        layer_dict = {
+            "track_num": f"{track}",
+            "layer_id": [],
+            "pt_distances": [],
+            "pt_twts": [],
+            "pt_lines": [],
+            "pt_cols": [],
+            "pt_lats": [],
+            "pt_lons": [],
+            "surf_elevs": [],
+            "surf_twts": [],
+            "pt_db": [],
+            "surf_db": [],
+            "pt_snr_db": [],
+            "signal_std_db": [],
+            "signal_median_db": [],
+            "signal_snr_db": [],
+            "noise": [],
+            "frequency":[]
+        }
         #layer_dict["track_num"]=f"s_{track}"
-        subsurface_df = pd.DataFrame()
+        subsurface_df = pd.DataFrame(data=layer_dict)
         print(e, "Creating a new one")
 
     ### Initializing and defining interactive basemap plot using wms
@@ -694,7 +713,7 @@ def autopick_data():
     selected_track = track_select.value
     print(selected_track)
     #for i in range(10):
-    subsurface_df, xs, ys =  autopicker(selected_track, dem, [rolled_acq_ori, rolled_acq_db_ori], geom, geom_length, track_dir, frequencies_array=None, selected_frequency=None)
+    subsurface_df, xs, ys =  autopicker(selected_track, dem, [rolled_acq_ori, rolled_acq_db_ori], geom, geom_length, track_dir, frequencies_array=None, selected_frequency=None, sampling=0.0375)
 #    subsurface_df, xs, ys = autopicker(selected_track,layer_dict,dem_profile_ori)
     source.data = dict(x=xs, y=ys)    
     radargram_figure.multi_line(xs='x', ys='y', source=source, line_color='red', line_width=3)
@@ -838,7 +857,7 @@ demo_text = Div(text="""
     </div>
 """, width=300, height=80)
 
-layout = row(column(row(track_select, version_select, load_button, save_button, autopick_button, demo_text),
+layout = row(column(row(track_select, version_select, load_button, save_button, autopick_button),# demo_text),
                     row(roll_input, compression_slider, quality_slider),
                     row(min_lon_input, min_lat_input, max_lon_input, max_lat_input, update_button),  
                     row(radargram_figure, p_cross_section),

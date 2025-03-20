@@ -7,7 +7,7 @@ import math
 import numpy as np
 from shapely import Point
 
-def track_dict_builder(track, geom, geom_length, xdr_array, xdr_array_db, xcors, ycors, xs_arrays, ys_arrays, dem, frequency_array, sc_altitudes=[], sampling=0.0375, selected_frequency=None):
+def track_dict_builder(track, geom, geom_length, xdr_array, xdr_array_db, xcors, ycors, xs_arrays, ys_arrays, dem, frequencies_array, sampling=0.0375, selected_frequency=None):
     track_dict = {
         "track_id": track,
         "layers": None,
@@ -30,11 +30,10 @@ def track_dict_builder(track, geom, geom_length, xdr_array, xdr_array_db, xcors,
             "surf_db": [],
             "pt_snr_db": [],
             "signal_std_db": [],
+            #"noise": [],
             "signal_median_db": [],
             "signal_snr_db": [],
-            "noise":[],
-            "frequency":[],
-            "sc_altitudes": []
+            "frequency":[]
             #"frequencies_1": [] if sampling != 0.0375 else None,
             #"frequencies_2": [] if sampling != 0.0375 else None
         }
@@ -49,31 +48,28 @@ def track_dict_builder(track, geom, geom_length, xdr_array, xdr_array_db, xcors,
 
             sliced_db = xdr_array_db[:, xxI]
             signal_std_db = np.std(sliced_db)
-            signal_median_db = np.median(sliced_db)
+            signal_median_db = np.median(sliced_db) ########################################## RINOMINARE N
             signal_snr_std_db = signal_median_db - signal_std_db
             pt_db = xdr_array_db[yyI][xxI]
             pt_snr_db = signal_median_db - pt_db
             surf_db = np.max(sliced_db)
             max_idx = np.argmax(sliced_db)          # Find index of first occurrence of max value
-            noise_db = np.mean(sliced_db[0:max_idx-10]) # Slice from that index to yyI-2
+            noise_db = sliced_db[0:max_idx] # Slice from that index to yyI-2
             print("NOISE DB ------------------------------------", noise_db)
-            layer_dict["signal_std_db"].append(signal_std_db)
+           # layer_dict["signal_std_db"].append(signal_std_db)
+            #layer_dict["noise"].append(noise_db)
             layer_dict["signal_median_db"].append(signal_median_db)
             layer_dict["signal_snr_db"].append(signal_snr_std_db)
-            layer_dict["noise"].append(noise_db)
             layer_dict["pt_db"].append(pt_db)
             layer_dict["surf_db"].append(surf_db)
             layer_dict["pt_snr_db"].append(pt_snr_db)
             layer_dict["surf_twts"].append(np.where(sliced_db == surf_db)[0][0] * sampling)
 
             if sampling != 0.0375:
-                #if selected_frequency=='F1':
-                #    layer_dict["frequency"].append(frequencies_array[0][xxI])
-                #else:
-                #    layer_dict["frequency"].append(frequencies_array[1][xxI])
-                layer_dict["frequency"].append(frequency_array[xxI])
-                print(sc_altitudes)
-                layer_dict["sc_altitudes"].append(sc_altitudes[xxI])
+                if selected_frequency=='F1':
+                    layer_dict["frequency"].append(frequencies_array[0][xxI])
+                else:
+                    layer_dict["frequency"].append(frequencies_array[1][xxI])
             
         adjusted_points = [geom.interpolate(geom.project(Point(xy))) for xy in zip(layer_dict["pt_lons"], layer_dict["pt_lats"])]
         layer_dict["pt_lats"] = [pt.y for pt in adjusted_points]

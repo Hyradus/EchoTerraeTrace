@@ -55,23 +55,37 @@ home = '/app/'  # Replace with `Path.home()` if needed  # Replace with `Path.hom
 print(f"Home Directory: {home}")
 
 # Default data directory
-data_dir = '/Data/MARSIS/'#os.path.join(home, 'SHARAD')
-#data_dir = '/mnt/OrbitalData/Mars/MARSIS/MARSIS_DATA/Zephyria_Planum/'
+data_dir = '/Data/MARSIS/'
+data_dir = '/home/hyradus/SyncThing/SyncData/Zephyria_Planum/'
 
 def process_images(indexes, full_parameters, ParamDF, datatype):
-    amp_imgs, pha_imgs, titles = [], [], []
-
+    
+    amp_imgs, pha_imgs, titles, frequencies,sc_altitude, lon, lat = [], [], [], [], [], [], []
+    
     for idx in indexes:
-        img = np.array(full_parameters[idx])
-        name = ParamDF.iloc[idx].NAME
-        
-        if datatype == 'ncsim' or (datatype == 'xdr' and idx % 2 != 0) or (datatype != 'ncsim' and datatype != 'xdr' and idx % 2 == 0):
-            amp_imgs.append(img)
-            titles.append(name)
+
+        if idx == 0:
+            print('0',idx)
+            frequencies.append(np.array(full_parameters[idx]))
+        elif idx==28:
+            print('28',idx)
+            print(ParamDF.iloc[idx].NAME)
+            sc_altitude.append(np.array(full_parameters[idx]))
+        elif idx==29:
+            lon.append(np.array(full_parameters[idx]))
+        elif idx==30:
+            lat.append(np.array(full_parameters[idx]))
         else:
-            pha_imgs.append(img)
-                
-    return amp_imgs, pha_imgs, titles
+            print(idx)
+            img = np.array(full_parameters[idx])
+            name = ParamDF.iloc[idx].NAME
+            if datatype == 'ncsim' or (datatype == 'xdr' and idx % 2 != 0) or (datatype != 'ncsim' and datatype != 'xdr' and idx % 2 == 0):
+                amp_imgs.append(img)
+                titles.append(name)
+            else:
+                pha_imgs.append(img)
+            
+    return amp_imgs, pha_imgs, titles, frequencies, sc_altitude, lon, lat
 
 
 def reader(File, ParamDF, indexes, datatype):
@@ -99,9 +113,9 @@ def reader(File, ParamDF, indexes, datatype):
     full_parameters, short_parameters = zip(*results)
     
     # Process images based on datatype
-    amp_imgs, pha_imgs, titles = process_images(indexes, full_parameters, ParamDF, datatype)
+    amp_imgs, pha_imgs, titles, frequencies, sc_altitude, lon, lat = process_images(indexes, full_parameters, ParamDF, datatype)
     
-    return amp_imgs, pha_imgs, titles, results
+    return amp_imgs, pha_imgs, titles, frequencies, sc_altitude, lon, lat
     
 
     
@@ -304,12 +318,17 @@ def processor(file, data_dir, basemap_layerid, dem_layerid, wcs_url,boundingbox)
     global cut_geom
     global subsurface_df
     global dem_profile
-    global frequencies_array
+    global frequencies_arrays
+    global sc_altitudes
     global source
     global xdr_image_f1
     global xdr_image_f1_db
     global xdr_image_f2
     global xdr_image_f2_db
+    global xdr_image_f1_ori
+    global xdr_image_f1_db_ori
+    global xdr_image_f2_ori
+    global xdr_image_f2_db_ori
     global stack_xdr_scaled
     global dem
     global stack_scs
@@ -340,10 +359,12 @@ def processor(file, data_dir, basemap_layerid, dem_layerid, wcs_url,boundingbox)
     ParamDF = xDR_params()
     indexes = np.arange(9, 20)
     indexes = np.insert(indexes, 0, 0)
+    indexes = np.append(indexes, [28,29,30])
     
     xDRs = reader(file, ParamDF, indexes, 'xdr')
     #print(xDRs[0])
-    frequencies_array = xDRs[3][0][0]
+    frequencies_arrays = xDRs[3]
+    sc_altitudes = xDRs[4][0]
     stack_xdr = np.stack(xDRs[0])
 
     max_width = stack_xdr[0].shape[1]
@@ -359,6 +380,10 @@ def processor(file, data_dir, basemap_layerid, dem_layerid, wcs_url,boundingbox)
     xdr_image_f2 = stack_xdr_scaled[4,:, :]
     xdr_image_f1_db = stack_xdr_scaled[1,:, :]
     xdr_image_f2_db = stack_xdr_scaled[4,:, :]
+    xdr_image_f1_ori = stack_xdr[1,:, :]
+    xdr_image_f2_ori = stack_xdr[4,:, :]
+    xdr_image_f1_db_ori = stack_xdr[1,:, :]
+    xdr_image_f2_db_ori = stack_xdr[4,:, :]
     
     
     p_image_xdr = fg(title=f'{xdr_titles[0]}',width=plot_size//2, height=hgt//2,  y_range=(xdr_image_f1.shape[0],0),tools=[' wheel_zoom,pan,box_zoom,reset',cht])
@@ -376,8 +401,8 @@ def processor(file, data_dir, basemap_layerid, dem_layerid, wcs_url,boundingbox)
     
     ####### Create geometry footprint
     
-    lon = xDRs[3][29][0]
-    lat = xDRs[3][30][0]
+    lon = xDRs[5][0].tolist()#[3][29][0]
+    lat = xDRs[6][0].tolist()#[[30][0]
     print('Len lon, lat arrays', len(lon), len(lat))
     # Function to normalize longitude
     
@@ -1013,7 +1038,7 @@ def processor(file, data_dir, basemap_layerid, dem_layerid, wcs_url,boundingbox)
     p_image_processed.js_on_event('mousemove', callback_scs_f1)
     p_image_processed.js_on_event('mousemove', callback_scs_f2)
     
-    return(slider_xdr, p_image_xdr, slider_scs, p_image_scs, p_cross_section_a,p_cross_section_b, p_image_processed, slider_processed, p_image_base, dem_profiles, power_profiles, source, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled, geom,frequencies_array)#, p_image_ampha, slider_ampha)
+    return(slider_xdr, p_image_xdr, slider_scs, p_image_scs, p_cross_section_a,p_cross_section_b, p_image_processed, slider_processed, p_image_base, dem_profiles, power_profiles, source, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled, geom,frequencies_arrays, sc_altitudes)#, p_image_ampha, slider_ampha)
 
 
 def update_plots(attrname, old, new):    
@@ -1025,7 +1050,7 @@ def update_plots(attrname, old, new):
     selected_track = track_select.value
     print(selected_track)
     file = f"{selected_track}.DAT"
-    slider_xdr, p_image_xdr, slider_scs, p_image_scs, p_cross_section_a, p_cross_section_b, p_image_processed, slider_processed, p_image_base, dem_profiles, power_profiles, source, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled, geom,frequencies_array = processor(file, data_dir, basemap_layerid, dem_layerid, wcs_url,bounding_box)
+    slider_xdr, p_image_xdr, slider_scs, p_image_scs, p_cross_section_a, p_cross_section_b, p_image_processed, slider_processed, p_image_base, dem_profiles, power_profiles, source, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled, geom,frequencies_arrays, sc_altitudes = processor(file, data_dir, basemap_layerid, dem_layerid, wcs_url,bounding_box)
 
 
     
@@ -1062,11 +1087,11 @@ def save_data():
             hdf_file = os.path.join(data_dir, 'subsurface_layers_autopicked_F2.h5')
         print('Loading Autopicked')    
     
-
-    subsurface_saver(source, track, hdf_file, [xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db], geom, geom_length, dem, data_dir,frequencies_array, selected_frequency)
+    
+    subsurface_saver(source, track, hdf_file, [xdr_image_f1, xdr_image_f1_db_ori, xdr_image_f2, xdr_image_f2_db_ori], geom, geom_length, dem, data_dir,frequencies_arrays, sc_altitudes, selected_frequency, sampling=0.7143)
     #subsurface_saver(source, track, hdf_file, [xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db],  geom, geom_length, dem_profile, data_dir, layer_dict, selected_frequency, frequencies_array)
     
-    source, track, hdf_file, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled, geom, geom_length, dem_profile, data_dir, selected_frequency, frequencies_array
+    #source, track, hdf_file, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled, geom, geom_length, dem_profile, data_dir, selected_frequency, frequencies_array
     print(f'Saved data for {selected_version} with {selected_frequency}')
 
 
@@ -1093,6 +1118,8 @@ def load_data():
         subsurface_df = pd.read_hdf(hdf_file)
         subsurface_df = subsurface_df.reset_index(drop=True)
         #df = df[df["layer_id"].str.contains(f'{track}_surface') == False]
+        print("TRACK: ", track)
+        print(subsurface_df)
         subsurface_df = subsurface_df.loc[subsurface_df.track_num.str.contains(track)]
         print(subsurface_df.head)
         xs_arrays = []
@@ -1108,7 +1135,7 @@ def load_data():
             track_layers_coords.append(layer_coords)
         #source.data = dict(x=[], y=[])
         source.data = dict(x=xs_arrays, y=ys_arrays)    
-        radargram_figure.multi_line(xs='x', ys='y', source=source, line_color='red', line_width=3)
+        #radargram_figure.multi_line(xs='x', ys='y', source=source, line_color='red', line_width=3)
         print(f'loaded {selected_version}')
         #print(xs_arrays)
         #print(ys_arrays)
@@ -1156,7 +1183,7 @@ def autopick_data():
         stack_index = 1
     else:  # F2
         stack_index = 4
-    subsurface_df, xs, ys =  autopicker(selected_track, dem, [xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db], geom, geom_length, data_dir, frequencies_array, selected_frequency)
+    subsurface_df, xs, ys =  autopicker(selected_track, dem, [xdr_image_f1, xdr_image_f1_db_ori, xdr_image_f2, xdr_image_f2_db_ori], geom, geom_length, data_dir, frequencies_arrays, sc_altitudes, selected_frequency, sampling=0.7143)
     
     
     source.data = dict(x=xs, y=ys)
@@ -1207,7 +1234,7 @@ if 'dummy' in dummy:
     
 else:
     
-    slider_xdr, p_image_xdr, slider_scs, p_image_scs, p_cross_section_a, p_cross_section_b, p_image_processed, slider_processed, p_image_base, dem_profiles, power_profiles, source, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled,  geom, frequencies_array  = processor(f'{selected_track}.DAT', data_dir, basemap_layerid, dem_layerid, wcs_url, bounding_box)
+    slider_xdr, p_image_xdr, slider_scs, p_image_scs, p_cross_section_a, p_cross_section_b, p_image_processed, slider_processed, p_image_base, dem_profiles, power_profiles, source, xdr_image_f1, xdr_image_f1_db, xdr_image_f2, xdr_image_f2_db, stack_xdr_scaled, stack_scs, stack_scs_db, stack_scs_scaled,  geom, frequencies_arrays, sc_altitudes,  = processor(f'{selected_track}.DAT', data_dir, basemap_layerid, dem_layerid, wcs_url, bounding_box)
             
     
 #load_original_button = Button(label="Load original picked", button_type="success")

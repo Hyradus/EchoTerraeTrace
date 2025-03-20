@@ -16,7 +16,7 @@ from utils.CRS import MARS2000
 from utils.dataStructs import track_dict_builder
 import math
 
-def subsurface_saver(source, track, hdf_file, acquisition_array_list, geom, geom_length, dem, data_dir, frequencies_array, selected_frequency=None):
+def subsurface_saver(source, track, hdf_file, acquisition_array_list, geom, geom_length, dem, data_dir, frequency_arrays=None, sc_altitudes=None, selected_frequency=None, sampling=0.0375):
     
     if selected_frequency is None:
         acquisition_array = acquisition_array_list[0]
@@ -25,10 +25,12 @@ def subsurface_saver(source, track, hdf_file, acquisition_array_list, geom, geom
     elif selected_frequency == 'F1':        
         acquisition_array = acquisition_array_list[0]
         acquisition_array_db = acquisition_array_list[1]
+        frequency_array=frequency_arrays[0][0]
         
     else:
         acquisition_array = acquisition_array_list[2]
         acquisition_array_db = acquisition_array_list[3]
+        frequency_array=frequency_arrays[0][1]
     
     print(track)        
     ### **Collect all the drawings ang generate the ticks labels and plots**
@@ -54,7 +56,7 @@ def subsurface_saver(source, track, hdf_file, acquisition_array_list, geom, geom
     #if frequencies_array is None or frequencies_array.size == None:
     #    frequencies_array = np.empty(acquisition_array.shape[1])
             
-    track_dict = track_dict_builder(track, geom, geom_length, acquisition_array, acquisition_array_db, xcors, ycors, xs_arrays, ys_arrays, dem, frequencies_array, sampling=0.0375)
+    track_dict = track_dict_builder(track, geom, geom_length, acquisition_array, acquisition_array_db, xcors, ycors, xs_arrays, ys_arrays, dem, frequency_array,  sc_altitudes, sampling, selected_frequency)
     print(track_dict)
     track_df = pd.DataFrame()#columns=track_dict['layers'][0].keys())
     
@@ -99,7 +101,7 @@ def compute_maxY(x_new, y_new, rolled_acq, kernel):
         maxY.append(vertical_window[index])
     return maxY
 
-def autopicker(track, dem, acquisition_array_list, geom, geom_length, data_dir, frequencies_array=None, selected_frequency=None):
+def autopicker(track, dem, acquisition_array_list, geom, geom_length, data_dir, frequency_arrays=None, sc_altitudes=None, selected_frequency=None, sampling=0.0375):
     
     print('AUTOPICKING: ', track)
 
@@ -113,11 +115,13 @@ def autopicker(track, dem, acquisition_array_list, geom, geom_length, data_dir, 
         hdf_picked_file = f"{data_dir}/subsurface_layers_autopicked_F1.h5"
         acquisition_array = acquisition_array_list[0]
         acquisition_array_db = acquisition_array_list[1]
+        frequency_array=frequency_arrays[0][0]
     else:  # F2
         hdf_file = f"{data_dir}/subsurface_layers_F2.h5"
         hdf_picked_file = f"{data_dir}/subsurface_layers_autopicked_F2.h5"
         acquisition_array = acquisition_array_list[2]
         acquisition_array_db = acquisition_array_list[3]
+        frequency_array=frequency_arrays[0][1]
     
     
     subsurface_df = pd.read_hdf(hdf_file)
@@ -173,7 +177,7 @@ def autopicker(track, dem, acquisition_array_list, geom, geom_length, data_dir, 
     #track_dict = track_dict_builder(track, geom, geom_length, rolled_acq_db, xcors, ycors, xs_arrays, ys_arrays, dem_profile, layer_dict)
     #if frequencies_array is None or frequencies_array.size == None:
     #    frequencies_array = np.empty(acquisition_array.shape[1])
-    track_dict = track_dict_builder(track, geom, geom_length, acquisition_array, acquisition_array_db, xcors, ycors, xs_arrays, ys_arrays, dem, frequencies_array, sampling=0.0375)
+    track_dict = track_dict_builder(track, geom, geom_length, acquisition_array, acquisition_array_db, xcors, ycors, xs_arrays, ys_arrays, dem, frequency_array, sc_altitudes, sampling)
     print(track_dict)
     
     track_df = pd.DataFrame()#columns=track_dict['layers'][0].keys())
